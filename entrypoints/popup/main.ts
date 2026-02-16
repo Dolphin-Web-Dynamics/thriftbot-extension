@@ -1,6 +1,6 @@
 import './style.css';
 import { fetchVendooReadyItems, markAsListed } from '@/lib/api';
-import type { ThriftbotItem, FillFormMessage, FillResultMessage, DownloadImagesMessage } from '@/lib/types';
+import type { ThriftbotItem, FillFormMessage, FillResultMessage } from '@/lib/types';
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
 
@@ -138,42 +138,63 @@ async function handleFill(item: ThriftbotItem, btn: HTMLButtonElement) {
     const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
     if (!tab?.id) throw new Error('No active tab');
 
+    // Ensure content script is injected (handles SPA navigation)
+    try {
+      await browser.scripting.executeScript({
+        target: { tabId: tab.id },
+        files: ['content-scripts/content.js'],
+      });
+    } catch {
+      // Script may already be injected or tab may not be injectable
+    }
+
     // Send item data to the content script
     const message: FillFormMessage = { type: 'FILL_VENDOO_FORM', item };
     const result = await browser.tabs.sendMessage(tab.id, message) as FillResultMessage;
 
     if (result?.success) {
-      // Download images via background script
-      if (item.image_urls?.length) {
-        const dlMsg: DownloadImagesMessage = {
-          type: 'DOWNLOAD_IMAGES',
-          imageUrls: item.image_urls,
-          sku: item.sku,
-        };
-        await browser.runtime.sendMessage(dlMsg);
-        btn.textContent = 'Filled! Drag images';
-      } else {
-        btn.textContent = 'Filled!';
-      }
       btn.classList.add('success');
+      btn.textContent = 'Mark Listed';
+      btn.disabled = false;
 
-      // Mark as listed in Thriftbot
-      await markAsListed(item.id);
+      // Replace click handler: next click marks as listed
+      const newBtn = btn.cloneNode(true) as HTMLButtonElement;
+      btn.replaceWith(newBtn);
+      newBtn.addEventListener('click', () => handleMarkListed(item, newBtn));
     } else {
       btn.textContent = 'Error';
       btn.classList.add('error');
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.textContent = 'Fill Form';
+        btn.classList.remove('error');
+      }, 3000);
     }
   } catch (err: any) {
     console.error('Fill error:', err);
     btn.textContent = 'Error';
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.textContent = 'Fill Form';
+    }, 3000);
   }
+}
 
-  // Re-enable after 3s
-  setTimeout(() => {
+async function handleMarkListed(item: ThriftbotItem, btn: HTMLButtonElement) {
+  btn.disabled = true;
+  btn.textContent = 'Marking...';
+
+  try {
+    await markAsListed(item.id);
+    btn.textContent = 'Listed!';
+    btn.classList.remove('success');
+    btn.classList.add('listed');
+    btn.disabled = true;
+  } catch (err: any) {
+    console.error('Mark listed error:', err);
+    btn.textContent = 'Mark Listed';
     btn.disabled = false;
-    btn.textContent = 'Fill Form';
-    btn.classList.remove('success', 'error');
-  }, 5000);
+  }
 }
 
 // Initial load

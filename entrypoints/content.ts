@@ -9,10 +9,21 @@ const CONDITION_MAP: Record<string, string> = {
   fair: 'Fair',
 };
 
+// Gender mapping: Thriftbot enum → Vendoo dropdown label
+const GENDER_MAP: Record<string, string> = {
+  mens: 'Men',
+  womens: 'Women',
+  unisex: 'Unisex',
+};
+
 export default defineContentScript({
   matches: ['https://web.vendoo.co/app/item/new*'],
 
   main() {
+    // Prevent duplicate listeners when script is re-injected programmatically
+    if (document.documentElement.dataset.thriftbotLoaded) return;
+    document.documentElement.dataset.thriftbotLoaded = 'true';
+
     // Listen for messages from the popup
     browser.runtime.onMessage.addListener(
       (message: FillFormMessage, _sender, sendResponse) => {
@@ -65,14 +76,19 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function fillTextField(testId: string, value: string | number | null | undefined) {
+async function fillTextField(fieldId: string, value: string | number | null | undefined) {
   if (value == null || value === '' || value === 0) return;
 
+  // Try data-testid first, then name, then id
   const el = document.querySelector<HTMLInputElement | HTMLTextAreaElement>(
-    `[data-testid="${testId}"]`
+    `[data-testid="${fieldId}"]`
+  ) || document.querySelector<HTMLInputElement | HTMLTextAreaElement>(
+    `[name="${fieldId}"]`
+  ) || document.querySelector<HTMLInputElement | HTMLTextAreaElement>(
+    `#${CSS.escape(fieldId)}`
   );
   if (!el) {
-    console.warn(`[Thriftbot] Field not found: ${testId}`);
+    console.warn(`[Thriftbot] Field not found: ${fieldId}`);
     return;
   }
 
@@ -80,6 +96,82 @@ async function fillTextField(testId: string, value: string | number | null | und
   el.click();
   setNativeValue(el, String(value));
   el.blur();
+}
+
+async function fillDescription(value: string | null | undefined) {
+  if (!value) return;
+
+  const el = document.querySelector<HTMLTextAreaElement | HTMLInputElement>(
+    '#generalDetails\\.description'
+  ) || document.querySelector<HTMLTextAreaElement | HTMLInputElement>(
+    '[name="generalDetails.description"]'
+  ) || document.querySelector<HTMLTextAreaElement | HTMLInputElement>(
+    'textarea[name*="description" i]'
+  );
+
+  if (el) {
+    console.log(`[Thriftbot] Description element found: <${el.tagName.toLowerCase()}> name="${el.name}" type="${el.type}"`);
+
+    el.focus();
+    el.click();
+    await sleep(100);
+
+    // Use the specific prototype setter for this element type
+    const proto = el instanceof HTMLTextAreaElement
+      ? HTMLTextAreaElement.prototype
+      : HTMLInputElement.prototype;
+    const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+
+    if (setter) {
+      setter.call(el, value);
+    } else {
+      el.value = value;
+    }
+
+    // Fire all events React might listen to
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+    el.dispatchEvent(new Event('blur', { bubbles: true }));
+
+    // Also try triggering React's internal handler via the fiber
+    const reactKey = Object.keys(el).find(k => k.startsWith('__reactFiber$') || k.startsWith('__reactInternalInstance$'));
+    if (reactKey) {
+      const propsKey = Object.keys(el).find(k => k.startsWith('__reactProps$'));
+      if (propsKey) {
+        const props = (el as any)[propsKey];
+        if (props?.onChange) {
+          props.onChange({ target: el, currentTarget: el });
+          console.log('[Thriftbot] Description: triggered React onChange via fiber');
+        }
+      }
+    }
+
+    console.log('[Thriftbot] Description filled');
+    return;
+  }
+
+  // Try contenteditable editors as fallback
+  const editor = document.querySelector<HTMLElement>(
+    '[aria-label="Description"] [contenteditable="true"]'
+  ) || document.querySelector<HTMLElement>(
+    '.DraftEditor-root [contenteditable="true"]'
+  ) || document.querySelector<HTMLElement>(
+    '[data-slate-editor="true"]'
+  ) || document.querySelector<HTMLElement>(
+    '.ProseMirror[contenteditable="true"]'
+  );
+
+  if (editor) {
+    console.log('[Thriftbot] Description found via contenteditable');
+    editor.focus();
+    document.execCommand('selectAll', false);
+    document.execCommand('insertText', false, value);
+    editor.dispatchEvent(new Event('input', { bubbles: true }));
+    editor.dispatchEvent(new Event('change', { bubbles: true }));
+    return;
+  }
+
+  console.warn('[Thriftbot] Description field not found');
 }
 
 async function fillDropdown(ariaLabel: string, value: string | null | undefined) {
@@ -150,7 +242,7 @@ async function fillVendooForm(item: ThriftbotItem) {
 
   // Simple text fields
   await fillTextField('generalDetails.title', item.title);
-  await fillTextField('generalDetails.description', item.description);
+  await fillDescription(item.description);
   await fillTextField('generalDetails.price', item.price);
   await fillTextField('generalDetails.cost', item.cost);
   await fillTextField('generalDetails.sku', item.sku);
@@ -199,5 +291,42 @@ async function fillVendooForm(item: ThriftbotItem) {
   // Notes
   await fillTextField('generalDetails.notes', item.notes);
 
+  // Images
+  if (item.image_urls?.length) {
+    await uploadImages(item.image_urls);
+  }
+
   console.log('[Thriftbot] Form fill complete for:', item.sku);
+}
+
+async function uploadImages(urls: string[]) {
+  const fileInput = document.querySelector<HTMLInputElement>('#imageInput');
+  if (!fileInput) {
+    console.warn('[Thriftbot] Image input not found');
+    return;
+  }
+
+  const files: File[] = [];
+  for (let i = 0; i < urls.length; i++) {
+    try {
+      const response = await fetch(urls[i]);
+      const blob = await response.blob();
+      const ext = blob.type.split('/')[1] || 'jpg';
+      const file = new File([blob], `image-${i + 1}.${ext}`, { type: blob.type });
+      files.push(file);
+    } catch (err) {
+      console.warn(`[Thriftbot] Failed to fetch image ${i + 1}:`, err);
+    }
+  }
+
+  if (files.length === 0) return;
+
+  const dataTransfer = new DataTransfer();
+  for (const file of files) {
+    dataTransfer.items.add(file);
+  }
+
+  fileInput.files = dataTransfer.files;
+  fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+  console.log(`[Thriftbot] Uploaded ${files.length} images`);
 }
