@@ -12,6 +12,7 @@
     "zip": "wxt zip",
     "zip:firefox": "wxt zip -b firefox",
     "compile": "tsc --noEmit",
+    "prepare": "git config core.hooksPath .githooks",
     "postinstall": "wxt prepare",
     "submit": "wxt submit",
     "submit:dry-run": "wxt submit --dry-run",
