@@ -52,11 +52,15 @@ jobs:
           if-no-files-found: error
 
       - name: Zip extension
-        run: npm run zip
+        id: zip
+        run: |
+          npm run zip
+          ZIP_PATH=$(ls .output/*-chrome.zip)
+          echo "path=$ZIP_PATH" >> "$GITHUB_OUTPUT"
 
       - name: Upload zip artifact
         uses: actions/upload-artifact@v6
         with:
           name: chrome-extension-zip
-          path: .output/*-chrome.zip
+          path: ${{ steps.zip.outputs.path }}
           if-no-files-found: error
