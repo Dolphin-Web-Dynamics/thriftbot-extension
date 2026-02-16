@@ -12,7 +12,10 @@
     "zip": "wxt zip",
     "zip:firefox": "wxt zip -b firefox",
     "compile": "tsc --noEmit",
-    "postinstall": "wxt prepare"
+    "postinstall": "wxt prepare",
+    "submit": "wxt submit",
+    "submit:dry-run": "wxt submit --dry-run",
+    "setup:cws": "bash scripts/setup-cws-credentials.sh"
   },
   "devDependencies": {
     "typescript": "^5.9.3",
