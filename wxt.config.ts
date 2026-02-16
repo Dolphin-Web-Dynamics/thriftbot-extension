@@ -2,8 +2,8 @@ import { defineConfig } from 'wxt';
 
 export default defineConfig({
   manifest: {
-    name: 'Thriftbot → Vendoo',
-    description: 'Auto-fill Vendoo listing forms from your Thriftbot inventory',
+    name: 'Thriftbot Crosslister',
+    description: 'Auto-fill listing forms on resale marketplaces from your Thriftbot inventory',
     permissions: ['activeTab', 'storage', 'downloads'],
     host_permissions: [
       'https://thriftbot.smelltherosessecondhand.com/*',

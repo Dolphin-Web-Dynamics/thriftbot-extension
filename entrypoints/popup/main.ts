@@ -8,7 +8,7 @@ const app = document.querySelector<HTMLDivElement>('#app')!;
 app.innerHTML = `
   <div class="header">
     <h1>Thriftbot</h1>
-    <span class="badge">Vendoo</span>
+    <span class="badge">Crosslister</span>
   </div>
   <button class="settings-toggle" id="settings-toggle">Settings</button>
   <div class="settings-panel" id="settings-panel">
