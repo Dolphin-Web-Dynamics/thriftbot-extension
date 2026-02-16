@@ -74,7 +74,7 @@ This starts WXT in dev mode with hot-reload. It will output the built extension 
 
 ### Project structure
 
-```
+```text
 entrypoints/
   background.ts         # Service worker — handles image downloads
   content.ts            # Content script — fills Vendoo form fields
