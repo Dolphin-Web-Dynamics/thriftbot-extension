@@ -71,10 +71,32 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
+  release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+
+    outputs:
+      created: ${{ steps.check.outputs.created }}
+
+    steps:
+      - name: Check if release already exists
+        id: check
+        run: |
+          VERSION="v${{ needs.build.outputs.version }}"
+          if gh release view "$VERSION" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "Release $VERSION already exists — skipping"
+            echo "created=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Creating release $VERSION"
+            gh release create "$VERSION" --repo "$GITHUB_REPOSITORY" --generate-notes
+            echo "created=true" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   upload-draft:
-    if: >-
-      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'draft')
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'draft'
     needs: build
     runs-on: ubuntu-latest
 
@@ -115,9 +137,14 @@ jobs:
 
   publish:
     if: >-
-      github.event_name == 'release' ||
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'publish')
-    needs: build
+      always() &&
+      needs.build.result == 'success' &&
+      (
+        needs.release.outputs.created == 'true' ||
+        github.event_name == 'release' ||
+        (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'publish')
+      )
+    needs: [build, release]
     runs-on: ubuntu-latest
 
     steps:
@@ -156,7 +183,9 @@ jobs:
           CHROME_REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
 
       - name: Attach zip to GitHub Release
-        if: github.event_name == 'release'
-        run: gh release upload "${{ github.event.release.tag_name }}" ".output/${{ needs.build.outputs.zip-name }}" --clobber
+        if: github.event_name == 'release' || needs.release.outputs.created == 'true'
+        run: |
+          TAG="${{ github.event.release.tag_name || format('v{0}', needs.build.outputs.version) }}"
+          gh release upload "$TAG" ".output/${{ needs.build.outputs.zip-name }}" --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
