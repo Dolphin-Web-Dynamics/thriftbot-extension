@@ -213,6 +213,11 @@ body {
   background: #059669;
 }
 
+.fill-btn.listed {
+  background: #6b7280;
+  cursor: default;
+}
+
 /* Loading */
 .spinner {
   display: inline-block;

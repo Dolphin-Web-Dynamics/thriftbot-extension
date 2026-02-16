@@ -7,8 +7,11 @@ export interface ThriftbotItem {
   cost: number | null;
   brand: string | null;
   category: string | null;
+  subcategory: string | null;
   condition: string | null;
+  target_gender: string | null;
   colors: string | null;
+  materials: string | null;
   size: string | null;
   weight_lbs: number | null;
   length: number | null;
@@ -17,6 +20,7 @@ export interface ThriftbotItem {
   tags: string | null;
   notes: string | null;
   zip_code: string | null;
+  occasion: string | null;
   image_urls: string[];
 }
 

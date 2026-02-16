@@ -2,7 +2,7 @@
   "name": "thriftbot-extension",
   "description": "Auto-fill Vendoo listing forms from Thriftbot inventory",
   "private": true,
-  "version": "1.1.0",
+  "version": "1.1.1",
   "type": "module",
   "scripts": {
     "dev": "wxt",
@@ -12,6 +12,7 @@
     "zip": "wxt zip",
     "zip:firefox": "wxt zip -b firefox",
     "compile": "tsc --noEmit",
+    "prepare": "git config core.hooksPath .githooks",
     "postinstall": "wxt prepare",
     "submit": "wxt submit",
     "submit:dry-run": "wxt submit --dry-run",
