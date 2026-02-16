@@ -1,0 +1,229 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  width: 380px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 13px;
+  color: #1f2937;
+  background: #f9fafb;
+}
+
+#app {
+  padding: 12px;
+}
+
+/* Header */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.header h1 {
+  font-size: 16px;
+  font-weight: 700;
+  color: #4f46e5;
+}
+
+.header .badge {
+  background: #e0e7ff;
+  color: #4338ca;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+/* Settings */
+.settings-toggle {
+  font-size: 11px;
+  color: #6b7280;
+  cursor: pointer;
+  background: none;
+  border: none;
+  text-decoration: underline;
+  margin-bottom: 8px;
+}
+
+.settings-panel {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 10px;
+  display: none;
+}
+
+.settings-panel.visible {
+  display: block;
+}
+
+.settings-panel label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 4px;
+}
+
+.settings-panel input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.settings-panel .save-btn {
+  background: #4f46e5;
+  color: #fff;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.settings-panel .save-btn:hover {
+  background: #4338ca;
+}
+
+/* States */
+.state-msg {
+  text-align: center;
+  padding: 20px 10px;
+  color: #6b7280;
+}
+
+.state-msg a {
+  color: #4f46e5;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.state-msg a:hover {
+  text-decoration: underline;
+}
+
+.error-msg {
+  background: #fef2f2;
+  color: #dc2626;
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  margin-bottom: 10px;
+}
+
+/* Not on Vendoo warning */
+.vendoo-warning {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+/* Item list */
+.item-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.item-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: border-color 0.15s;
+}
+
+.item-card:hover {
+  border-color: #a5b4fc;
+}
+
+.item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.item-sku {
+  font-size: 10px;
+  font-weight: 600;
+  color: #9ca3af;
+  text-transform: uppercase;
+}
+
+.item-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #111827;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.item-meta {
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.item-meta span {
+  margin-right: 8px;
+}
+
+.fill-btn {
+  background: #4f46e5;
+  color: #fff;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.fill-btn:hover {
+  background: #4338ca;
+}
+
+.fill-btn:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+.fill-btn.success {
+  background: #059669;
+}
+
+/* Loading */
+.spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #e5e7eb;
+  border-top-color: #4f46e5;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
