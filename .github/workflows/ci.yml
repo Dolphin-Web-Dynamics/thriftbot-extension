@@ -50,3 +50,13 @@ jobs:
           name: chrome-extension
           path: .output/chrome-mv3/
           if-no-files-found: error
+
+      - name: Zip extension
+        run: npm run zip
+
+      - name: Upload zip artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: chrome-extension-zip
+          path: .output/*-chrome.zip
+          if-no-files-found: error

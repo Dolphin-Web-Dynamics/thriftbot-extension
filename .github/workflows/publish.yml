@@ -1,12 +1,31 @@
 name: Publish to Chrome Web Store
 
 on:
+  push:
+    branches: [main]
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Upload mode"
+        required: true
+        type: choice
+        options:
+          - draft
+          - publish
+
+concurrency:
+  group: chrome-web-store
+  cancel-in-progress: false
 
 jobs:
-  publish:
+  build:
     runs-on: ubuntu-latest
+
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      zip-name: ${{ steps.meta.outputs.zip-name }}
 
     steps:
       - name: Checkout code
@@ -24,18 +43,120 @@ jobs:
       - name: TypeScript compile check
         run: npm run compile
 
+      - name: Read version from package.json
+        id: meta
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "zip-name=thriftbot-extension-${VERSION}-chrome.zip" >> "$GITHUB_OUTPUT"
+
+      - name: Validate release tag matches package.json version
+        if: github.event_name == 'release'
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          EXPECTED="v${{ steps.meta.outputs.version }}"
+          if [ "$TAG" != "$EXPECTED" ]; then
+            echo "::error::Release tag $TAG does not match package.json version $EXPECTED"
+            exit 1
+          fi
+
       - name: Build and zip extension
         run: npm run zip
 
-      - name: Submit to Chrome Web Store
-        run: npm run submit -- --chrome-zip .output/*-chrome.zip
+      - name: Upload zip artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: chrome-extension-zip
+          path: .output/${{ steps.meta.outputs.zip-name }}
+          if-no-files-found: error
+          retention-days: 90
+
+  upload-draft:
+    if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'draft')
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download zip artifact
+        uses: actions/download-artifact@v6
+        with:
+          name: chrome-extension-zip
+          path: .output
+
+      - name: Check CWS status
+        run: bash scripts/check-cws-status.sh
         env:
           CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
           CHROME_CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
           CHROME_CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
           CHROME_REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
 
-      - name: Upload zip to GitHub Release
-        run: gh release upload "${{ github.event.release.tag_name }}" .output/*-chrome.zip --clobber
+      - name: Upload draft to Chrome Web Store
+        run: npm run submit -- --chrome-zip .output/${{ needs.build.outputs.zip-name }} --chrome-skip-submit-review
+        env:
+          CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
+          CHROME_CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
+          CHROME_CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
+          CHROME_REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
+
+  publish:
+    if: >-
+      github.event_name == 'release' ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'publish')
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download zip artifact
+        uses: actions/download-artifact@v6
+        with:
+          name: chrome-extension-zip
+          path: .output
+
+      - name: Check CWS status
+        run: bash scripts/check-cws-status.sh
+        env:
+          CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
+          CHROME_CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
+          CHROME_CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
+          CHROME_REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
+
+      - name: Submit to Chrome Web Store for review
+        run: npm run submit -- --chrome-zip .output/${{ needs.build.outputs.zip-name }}
+        env:
+          CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
+          CHROME_CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
+          CHROME_CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
+          CHROME_REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
+
+      - name: Attach zip to GitHub Release
+        if: github.event_name == 'release'
+        run: gh release upload "${{ github.event.release.tag_name }}" ".output/${{ needs.build.outputs.zip-name }}" --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
