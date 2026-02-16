@@ -15,6 +15,9 @@ on:
           - draft
           - publish
 
+permissions:
+  contents: write
+
 concurrency:
   group: chrome-web-store
   cancel-in-progress: false
