@@ -45,7 +45,7 @@ jobs:
         run: npm run build
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: chrome-extension
           path: .output/chrome-mv3/
@@ -59,7 +59,7 @@ jobs:
           echo "path=$ZIP_PATH" >> "$GITHUB_OUTPUT"
 
       - name: Upload zip artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: chrome-extension-zip
           path: ${{ steps.zip.outputs.path }}
